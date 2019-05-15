@@ -5,11 +5,12 @@ import sys
 import requests
 
 UTC_NOW = datetime.utcnow()
+
 if len(sys.argv) > 1:
-    if str(sys.argv[1] == '-n'):
+    if str(sys.argv[1]) == '-n':
         noninteractive = True
     else:
-        print('Usage: python delete_stale_guids.py <-n>')
+        print('usage: delete_stale_guids.py [-n]')
         sys.exit()
 else:
     noninteractive = False
@@ -66,11 +67,6 @@ def delete_guid(session, guid, hostname, computers_url):
     response = session.delete(url)
     response_json = response.json()
     if noninteractive:
-        if response.status_code == 200 and response_json['data']['deleted']:
-            print('Succesfully deleted: {}'.format(hostname))
-        else:
-            print('Something went wrong deleting: {}'.format(hostname))
-    else:
         now = datetime.now()
         day_string = now.strftime("%Y-%m-%d")
         daytime_string = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -80,6 +76,11 @@ def delete_guid(session, guid, hostname, computers_url):
                 file_output.write(daytime_string + ' - Succesfully deleted: {}'.format(hostname) + '\n')
             else:
                 file_output.write(daytime_string + ' - Something went wrong deleting: {}'.format(hostname) + '\n')
+    else:
+        if response.status_code == 200 and response_json['data']['deleted']:
+            print('Succesfully deleted: {}'.format(hostname))
+        else:
+            print('Something went wrong deleting: {}'.format(hostname))
 
 def get(session, url):
     '''HTTP GET the URL and return the decoded JSON
@@ -91,12 +92,8 @@ def get(session, url):
 def main():
     '''The main logic of the script
     '''
-    if noninteractive == '-n':
-        print('jepp: ', noninteractive)
-    else:
-        print('nope')
     # Specify the config file
-    config_file = 'api.env'
+    config_file = 'api.cfg'
 
     # Reading the config file to get settings
     config = configparser.RawConfigParser()
@@ -124,7 +121,9 @@ def main():
 
     # Print the total number of GUIDs found
     total_guids = response_json['metadata']['results']['total']
-    if noninteractive != '-n':
+    if noninteractive:
+        pass
+    else:
         print('GUIDs found in environment: {}'.format(total_guids))
 
     # Process the returned JSON
@@ -138,18 +137,24 @@ def main():
         next_url = response_json['metadata']['links']['next']
         response_json = get(amp_session, next_url)
         index = response_json['metadata']['results']['index']
-        if noninteractive != '-n':
+        if noninteractive:
+            pass
+        else:
             print('Processing index: {}'.format(index))
         next_batch = process_response_json(response_json, age_threshold)
         computers_to_delete = computers_to_delete.union(next_batch)
 
     # Output the number of GUIDs found
-    if noninteractive != '-n':
+    if noninteractive:
+        pass
+    else:
         print('Found {} guids that have not been seen for'
               ' at least {} days'.format(len(computers_to_delete), age_threshold))
 
     if computers_to_delete:
-        if noninteractive != '-n':
+        if noninteractive:
+            pass
+        else:
             print('Writing CSV containing stale GUIDs to stale_guids.csv')
         with open('stale_guids.csv', 'w', encoding='utf-8') as file_output:
             file_output.write('Age in days,GUID,Hostname\n')
@@ -158,15 +163,15 @@ def main():
                                                       computer.guid,
                                                       computer.hostname))
         # Check if the user wants to GUIDs to be deleted
-        if noninteractive != '-n':
+        if noninteractive:
+            for computer in computers_to_delete:
+                delete_guid(amp_session, computer.guid, computer.hostname, computers_url)
+        else:
             if confirm_delete():
                 for computer in computers_to_delete:
                     delete_guid(amp_session, computer.guid, computer.hostname, computers_url)
             else:
                 sys.exit('Exiting!')
-        else:
-            for computer in computers_to_delete:
-                    delete_guid(amp_session, computer.guid, computer.hostname, computers_url)
 
 if __name__ == "__main__":
     main()
