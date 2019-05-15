@@ -10,15 +10,18 @@ For large environments (50k+ GUIDs) this script may take over 30 minutes to comp
 Authentication parameters:
 - client_id 
 - api_key
+
 Delete all GUIDs older than this value:
 - age_treshold
+
 Choose cloud location. Set to eu for European Union, apjc for Asia Pacific, Japan, and Greater China or leave empty for North America:
 - cloud
 
 ### Usage:
 ```
-python delete_stale_guids.py
+python delete_stale_guids.py [-n]
 ```
+Option -n is for noninteractive mode.
 
 ### Example script output:  
 ```
